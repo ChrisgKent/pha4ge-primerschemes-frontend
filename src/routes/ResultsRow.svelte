@@ -12,20 +12,20 @@
 	<td>
 		<a
 			class="title"
-			href={`${base}/detail/${scheme.schemename}/${scheme.ampliconsize}/${scheme.schemeversion}/?q=${query}`}
-			><strong>{scheme.schemename} / {scheme.ampliconsize} / {scheme.schemeversion}</strong></a
+			href={`${base}/detail/${scheme.name}/${scheme.amplicon_size}/${scheme.version}/?q=${query}`}
+			><strong>{scheme.name} / {scheme.amplicon_size} / {scheme.version}</strong></a
 		>
 		<ul>
-			{#if scheme.authors.length > author_num}
+			{#if scheme.contributors.length > author_num}
 				<li>
-					<strong>authors: </strong>{scheme.authors.slice(0, author_num).join(', ')},
-					<em data-tooltip={scheme.authors.join(', ')}><i>et al.</i></em>
+					<strong>contributors: </strong>{scheme.contributors.slice(0, author_num).join(', ')},
+					<em data-tooltip={scheme.contributors.join(', ')}><i>et al.</i></em>
 				</li>
 			{:else}
-				<li><strong>authors: </strong>{scheme.authors.join(', ')}</li>
+				<li><strong>contributors: </strong>{scheme.contributors.join(', ')}</li>
 			{/if}
 
-			<li><strong>species: </strong>{scheme.species.join(', ')}</li>
+			<li><strong>organisms: </strong>{scheme.target_organisms.join(', ')}</li>
 			<li style="color:grey">{scheme.license}</li>
 		</ul>
 	</td>
