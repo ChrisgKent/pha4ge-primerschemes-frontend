@@ -4,10 +4,7 @@
 	import { getCachedFlatSchemes } from '$lib/catalogCache.js';
 	import StatusPill from '$lib/StatusPill.svelte';
 
-	import 'giscus';
-
 	import AmpliconPlot from './DefaultAmpliconPlot.svelte';
-	import AdvancedPlot from './AdvancedPlot.svelte';
 
 	/*
 	// Initial state
@@ -21,10 +18,6 @@
 	let scheme = undefined;
 	let schemeLoading = true;
 	let schemeNotFound = false;
-
-	// Advanced Plot
-	let showingAdvancedPlot = false;
-	let advancedPlotLoaded = false;
 
 	// Reference
 	let reference = undefined;
@@ -47,21 +40,18 @@
 	let bedfileLoading = true;
 	let showBedfile = false;
 
-	// Algo
-	let primalschemeMajorVersion = undefined;
-
 	const infoSectionDefinitions = [
 		{
 			title: 'Core Metadata',
-			keys: ['schemename', 'ampliconsize', 'schemeversion', 'status', 'description', 'algorithmversion']
+			keys: ['name', 'amplicon_size', 'version', 'status', 'schema_version']
 		},
 		{
 			title: 'Attribution',
-			keys: ['authors', 'species', 'collections', 'license', 'contactinfo']
+			keys: ['contributors', 'target_organisms', 'aliases', 'license', 'citations']
 		},
 		{
 			title: 'Files And Checksums',
-			keys: ['info_json_url', 'primer_bed_url', 'reference_fasta_url', 'primer_bed_md5', 'reference_fasta_md5']
+			keys: ['primer_file_url', 'reference_file_url', 'info_file_url', 'checksums']
 		},
 		{
 			title: 'External Links',
@@ -71,6 +61,16 @@
 	const infoSectionKeys = new Set(infoSectionDefinitions.flatMap((section) => section.keys));
 
 	const isProbablyUrl = (value) => typeof value === 'string' && /^https?:\/\//.test(value);
+	const isNamedObject = (value) =>
+		value !== null &&
+		typeof value === 'object' &&
+		!Array.isArray(value) &&
+		typeof value.name === 'string';
+	const isOrganismObject = (value) =>
+		value !== null &&
+		typeof value === 'object' &&
+		!Array.isArray(value) &&
+		(value.common_name !== undefined || value.ncbi_tax_id !== undefined);
 	const isLinksMap = (value) =>
 		value !== null &&
 		typeof value === 'object' &&
@@ -181,9 +181,9 @@
 		// Find this scheme
 		scheme = flatSchemes.find((s) => {
 			return (
-				s.schemename === $page.params.schemename &&
-				s.ampliconsize === Number.parseInt($page.params.ampliconsize) &&
-				s.schemeversion === $page.params.version
+				s.name === $page.params.schemename &&
+				s.amplicon_size === Number.parseInt($page.params.ampliconsize) &&
+				s.version === $page.params.version
 			);
 		});
 
@@ -199,7 +199,7 @@
 
 		// Load info.json
 		try {
-			const response = await fetch(scheme.info_json_url);
+			const response = await fetch(scheme.info_file_url);
 			info = await response.json();
 		} catch (err) {
 			console.error(err);
@@ -208,14 +208,9 @@
 			infoLoading = false;
 		}
 
-		// Primalscheme major version
-		const algoStr = info?.algorithmversion;
-		const algoMatchResult = typeof algoStr === 'string' ? algoStr.match(/primalscheme(\d+):/) : null;
-		primalschemeMajorVersion = algoMatchResult ? Number.parseInt(algoMatchResult[1]) : null;
-
 		// Load bedfile
 		try {
-			let response = await fetch(scheme.primer_bed_url);
+			let response = await fetch(scheme.primer_file_url);
 			rawBedfile = await response.text();
 
 			bedfile = rawBedfile
@@ -232,7 +227,7 @@
 		// Load reference
 		referenceLoading = true;
 		try {
-			let response = await fetch(scheme.reference_fasta_url);
+			let response = await fetch(scheme.reference_file_url);
 			reference = await response.text();
 		} catch (err) {
 			console.error(err);
@@ -268,10 +263,10 @@
 		<p class="cache-warning">Using cached catalog data; upstream refresh failed. Data may be up to 2+ minutes old.</p>
 	{/if}
 	<div class="grid level">
-		<h2>{scheme.schemename} / {scheme.ampliconsize} / {scheme.schemeversion}</h2>
+		<h2>{scheme.name} / {scheme.amplicon_size} / {scheme.version}</h2>
 		<StatusPill status={scheme.status} />
 		<a
-			href="https://github.com/quick-lab/primerschemes/tree/main/primerschemes/{scheme.schemename}/{scheme.ampliconsize}/{scheme.schemeversion}"
+			href="https://github.com/ChrisgKent/pha4ge-primer-schemes/tree/main/schemes/{scheme.name}/{scheme.amplicon_size}/{scheme.version}"
 			class="contrast">[github-page]</a
 		>
 	</div>
@@ -286,30 +281,10 @@
 		<article>
 			<header class="grid level">
 				<div><strong>Scheme Overview</strong></div>
-				<div>
-					<input
-						name="whichPlot"
-						type="checkbox"
-						role="switch"
-						aria-invalid="false"
-						bind:checked={showingAdvancedPlot}
-						disabled={!advancedPlotLoaded}
-					/> Advanced Plot
-				</div>
 			</header>
 			<figure>
-				<AmpliconPlot hidden={showingAdvancedPlot} bedfileUrl={scheme.primer_bed_url} />
+				<AmpliconPlot bedfileUrl={scheme.primer_file_url} />
 			</figure>
-
-			{#if primalschemeMajorVersion >= 3}
-				<figure>
-					<AdvancedPlot
-						on:loaded={() => ((showingAdvancedPlot = true), (advancedPlotLoaded = true))}
-						bedfileUrl={scheme.primer_bed_url}
-						hidden={!showingAdvancedPlot}
-					/>
-				</figure>
-			{/if}
 		</article>
 	{/if}
 
@@ -381,6 +356,10 @@
 																	target="_blank"
 																	rel="noopener noreferrer">{valueItem}</a
 																>
+															{:else if isNamedObject(valueItem)}
+																<span class="value-chip" data-tooltip={Object.entries(valueItem).map(([k, v]) => `${k}: ${v}`).join('\n')}>{valueItem.name}</span>
+															{:else if isOrganismObject(valueItem)}
+																<span class="value-chip" data-tooltip={Object.entries(valueItem).map(([k, v]) => `${k}: ${v}`).join('\n')}>{valueItem.common_name ?? valueItem.ncbi_tax_id}</span>
 															{:else}
 																<span class="value-chip">{displayValue(valueItem)}</span>
 															{/if}
@@ -422,6 +401,8 @@
 												<a href={entry.value} target="_blank" rel="noopener noreferrer"
 													>{entry.value}</a
 												>
+											{:else if entry.key === 'status'}
+												<StatusPill status={entry.value} />
 											{:else}
 												<span>{displayValue(entry.value)}</span>
 											{/if}
@@ -457,6 +438,10 @@
 																	target="_blank"
 																	rel="noopener noreferrer">{valueItem}</a
 																>
+															{:else if isNamedObject(valueItem)}
+																<span class="value-chip" data-tooltip={Object.entries(valueItem).map(([k, v]) => `${k}: ${v}`).join('\n')}>{valueItem.name}</span>
+															{:else if isOrganismObject(valueItem)}
+																<span class="value-chip" data-tooltip={Object.entries(valueItem).map(([k, v]) => `${k}: ${v}`).join('\n')}>{valueItem.common_name ?? valueItem.ncbi_tax_id}</span>
 															{:else}
 																<span class="value-chip">{displayValue(valueItem)}</span>
 															{/if}
@@ -498,6 +483,8 @@
 												<a href={entry.value} target="_blank" rel="noopener noreferrer"
 													>{entry.value}</a
 												>
+											{:else if entry.key === 'status'}
+												<StatusPill status={entry.value} />
 											{:else}
 												<span>{displayValue(entry.value)}</span>
 											{/if}
@@ -622,26 +609,12 @@
 		</div>
 	</article>
 
-	<giscus-widget
-		id="comments"
-		repo="quick-lab/primerschemes"
-		repoid="R_kgDOKTGGTw"
-		category="Announcements"
-		categoryid="DIC_kwDOKTGGT84CcWWD"
-		reactionsenabled="1"
-		emitmetadata="0"
-		inputposition="top"
-		theme="light"
-		lang="en"
-		loading="lazy"
-		term="{scheme.schemename}/{scheme.ampliconsize}/{scheme.schemeversion}"
-		mapping="specific"
-	/>
 {/if}
 
 <style>
 	.level {
 		grid-template-columns: 1fr auto;
+		align-items: center;
 		margin-bottom: 2em;
 	}
 	td,
