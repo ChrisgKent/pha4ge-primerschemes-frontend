@@ -1,22 +1,19 @@
 import { flattenedSchemeIndex } from './flattenedSchemes.js';
 
-const INDEX_URL = 'https://raw.githubusercontent.com/quick-lab/primerschemes/main/index.json';
-const ALIASES_URL = 'https://raw.githubusercontent.com/quick-lab/primerschemes/main/aliases.json';
+const INDEX_URL =
+	'https://raw.githubusercontent.com/ChrisgKent/pha4ge-primer-schemes/refs/heads/main/index.json';
 
-const CACHE_NAMESPACE = 'catalog-cache:v1';
+const CACHE_NAMESPACE = 'catalog-cache:v2';
 const CACHE_KEYS = {
-	flatSchemes: `${CACHE_NAMESPACE}:flat-schemes`,
-	aliases: `${CACHE_NAMESPACE}:aliases`
+	flatSchemes: `${CACHE_NAMESPACE}:flat-schemes`
 };
 
 const MEMORY_CACHE = {
-	flatSchemes: null,
-	aliases: null
+	flatSchemes: null
 };
 
 const INFLIGHT = {
-	flatSchemes: null,
-	aliases: null
+	flatSchemes: null
 };
 
 const nowMsDefault = () => Date.now();
@@ -168,21 +165,9 @@ export const getCachedFlatSchemes = async (options = {}) => {
 	});
 };
 
-export const getCachedAliases = async (options = {}) => {
-	return getCachedResource({
-		resourceKey: 'aliases',
-		storageKey: CACHE_KEYS.aliases,
-		url: ALIASES_URL,
-		normalize: (aliasesPayload) => aliasesPayload,
-		...options
-	});
-};
-
 export const __resetCatalogCacheForTests = () => {
 	MEMORY_CACHE.flatSchemes = null;
-	MEMORY_CACHE.aliases = null;
 	INFLIGHT.flatSchemes = null;
-	INFLIGHT.aliases = null;
 };
 
 export const CATALOG_CACHE_KEYS = { ...CACHE_KEYS };

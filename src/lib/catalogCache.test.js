@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
 	CATALOG_CACHE_KEYS,
 	__resetCatalogCacheForTests,
-	getCachedAliases,
 	getCachedFlatSchemes
 } from './catalogCache.js';
 
@@ -10,15 +9,19 @@ const INDEX_PAYLOAD = {
 	primerschemes: {
 		'virus-a': {
 			400: {
-				'1.0.0': {
-					schemename: 'virus-a',
-					ampliconsize: 400,
-					schemeversion: '1.0.0',
-					status: 'validated',
-					authors: ['Alice'],
-					species: ['Virus a'],
-					license: 'CC-BY-4.0',
-					collections: ['respiratory']
+				'v1.0.0': {
+					name: 'virus-a',
+					amplicon_size: 400,
+					version: 'v1.0.0',
+					status: 'VALIDATED',
+					contributors: [{ name: 'Alice' }],
+					target_organisms: [{ common_name: 'virus-a' }],
+					license: 'CC-BY-SA-4.0',
+					tags: [],
+					primer_file_url: 'https://example.com/primer.bed',
+					reference_file_url: 'https://example.com/reference.fasta',
+					info_file_url: 'https://example.com/info.json',
+					checksums: { primer_sha256: 'abc', reference_sha256: 'def' }
 				}
 			}
 		}
@@ -29,15 +32,19 @@ const INDEX_PAYLOAD_REFRESHED = {
 	primerschemes: {
 		'virus-b': {
 			500: {
-				'2.0.0': {
-					schemename: 'virus-b',
-					ampliconsize: 500,
-					schemeversion: '2.0.0',
-					status: 'draft',
-					authors: ['Bob'],
-					species: ['Virus b'],
-					license: 'CC-BY-4.0',
-					collections: ['research']
+				'v2.0.0': {
+					name: 'virus-b',
+					amplicon_size: 500,
+					version: 'v2.0.0',
+					status: 'DRAFT',
+					contributors: [{ name: 'Bob' }],
+					target_organisms: [{ common_name: 'virus-b' }],
+					license: 'CC-BY-SA-4.0',
+					tags: [],
+					primer_file_url: 'https://example.com/primer.bed',
+					reference_file_url: 'https://example.com/reference.fasta',
+					info_file_url: 'https://example.com/info.json',
+					checksums: { primer_sha256: 'ghi', reference_sha256: 'jkl' }
 				}
 			}
 		}
@@ -127,7 +134,7 @@ describe('catalogCache', () => {
 			CATALOG_CACHE_KEYS.flatSchemes,
 			JSON.stringify({
 				fetchedAt: now - 1000,
-				data: [{ schemename: 'stored' }]
+				data: [{ name: 'stored' }]
 			})
 		);
 
@@ -141,7 +148,7 @@ describe('catalogCache', () => {
 
 		expect(result.meta.source).toBe('storage');
 		expect(result.meta.isStale).toBe(false);
-		expect(result.data).toEqual([{ schemename: 'stored' }]);
+		expect(result.data).toEqual([{ name: 'stored' }]);
 	});
 
 	it('expired cache triggers network refresh', async () => {
@@ -151,7 +158,7 @@ describe('catalogCache', () => {
 			CATALOG_CACHE_KEYS.flatSchemes,
 			JSON.stringify({
 				fetchedAt: now - 130000,
-				data: [{ schemename: 'stale' }]
+				data: [{ name: 'stale' }]
 			})
 		);
 
@@ -168,7 +175,7 @@ describe('catalogCache', () => {
 		expect(fetchCount).toBe(1);
 		expect(result.meta.source).toBe('network');
 		expect(result.meta.isStale).toBe(false);
-		expect(result.data[0].schemename).toBe('virus-b');
+		expect(result.data[0].name).toBe('virus-b');
 	});
 
 	it('returns stale storage cache when refresh fails', async () => {
@@ -178,7 +185,7 @@ describe('catalogCache', () => {
 			CATALOG_CACHE_KEYS.flatSchemes,
 			JSON.stringify({
 				fetchedAt: now - 130000,
-				data: [{ schemename: 'stale' }]
+				data: [{ name: 'stale' }]
 			})
 		);
 
@@ -192,7 +199,7 @@ describe('catalogCache', () => {
 
 		expect(result.meta.source).toBe('stale-storage');
 		expect(result.meta.isStale).toBe(true);
-		expect(result.data).toEqual([{ schemename: 'stale' }]);
+		expect(result.data).toEqual([{ name: 'stale' }]);
 	});
 
 	it('throws when refresh fails and no cache exists', async () => {
@@ -220,27 +227,5 @@ describe('catalogCache', () => {
 
 		expect(result.meta.source).toBe('network');
 		expect(() => JSON.parse(storage.getItem(CATALOG_CACHE_KEYS.flatSchemes))).not.toThrow();
-	});
-
-	it('aliases cache follows same metadata contract', async () => {
-		const storage = createStorage();
-		const now = 1700000000000;
-
-		const result = await getCachedAliases({
-			storage,
-			nowMs: () => now,
-			fetchImpl: async () => createJsonResponse({ alpha_alias: 'virus-a' })
-		});
-
-		expect(result.meta).toEqual({
-			source: 'network',
-			isStale: false,
-			fetchedAt: now
-		});
-		expect(result.data).toEqual({ alpha_alias: 'virus-a' });
-		expect(JSON.parse(storage.getItem(CATALOG_CACHE_KEYS.aliases))).toMatchObject({
-			fetchedAt: now,
-			data: { alpha_alias: 'virus-a' }
-		});
 	});
 });
