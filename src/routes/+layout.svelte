@@ -1,5 +1,6 @@
 <script>
-	import primalLogo from '$lib/assets/img/primal-logo.png';
+	import pha4geIcon from '$lib/assets/img/PHA4GE-Logo-icon-rgb-rj1du7r7r2d00lit9p7q8z9k9nlkg4s8suqtudjlrs.png';
+	import pha4geLandscape from '$lib/assets/img/PHA4GE-Logo-landscape-rgb-scaled.webp';
 	import gitHubLogo from '$lib/assets/img/github-mark.svg';
 	import { base } from '$app/paths';
 </script>
@@ -7,22 +8,15 @@
 <header class="is-fixed-above-lg is-fixed">
 	<div class="container">
 		<a class="logo" href="{base}/">
-			<img src={primalLogo} alt="triangle with all three sides equal" />
-			<strong>primalscheme labs</strong>
+			<img src={pha4geIcon} alt="pha4ge icon" />
+			<strong>primer schemes</strong>
 		</a>
 		<nav class="navbar" data-sveltekit-reload>
 			<ul>
 				<li><a href="{base}/">Search</a></li>
 				<li><a href="{base}/faqs">FAQs</a></li>
 				<li><a href="{base}/about">About</a></li>
-				<li><a href="https://github.com/quick-lab/primerschemes">GitHub</a></li>
-				<li>
-					<button
-						class="secondary"
-						onClick="javascript:window.location.href='https://primalscheme.com'"
-						>Create Scheme</button
-					>
-				</li>
+				<li><a href="https://github.com/ChrisgKent/pha4ge-primer-schemes">GitHub</a></li>
 			</ul>
 		</nav>
 	</div>
@@ -32,13 +26,11 @@
 
 <footer>
 	<p>
-		primalscheme labs is a project by <a href="https://artic.network">ARTIC Network</a> and Quick
-		Lab
-		<a href="https://github.com/quick-lab"
+		pha4ge primer schemes
+		<a href="https://github.com/ChrisgKent/pha4ge-primer-schemes"
 			><img class="gitlogo" src={gitHubLogo} alt="Github logo" /></a
 		>
 	</p>
-
 	<p xmlns:cc="http://creativecommons.org/ns#">
 		Unless stated otherwise all work is licensed under <a
 			href="http://creativecommons.org/licenses/by-sa/4.0/?ref=chooser-v1"
@@ -59,6 +51,9 @@
 				src="https://mirrors.creativecommons.org/presskit/icons/sa.svg?ref=chooser-v1"
 			/></a
 		>
+	</p>
+	<p>
+		<img class="footer-logo" src={pha4geLandscape} alt="pha4ge logo" />
 	</p>
 </footer>
 
@@ -150,6 +145,10 @@
 		height: 22px;
 		vertical-align: middle;
 		margin-left: 0.25rem;
+	}
+
+	.footer-logo {
+		height: 40px;
 	}
 
 	@media (max-width: 920px) {

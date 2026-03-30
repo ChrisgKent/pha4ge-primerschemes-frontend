@@ -6,9 +6,9 @@
 	<h1>About</h1>
 	<article>
 		<p>
-			The number of primerschemes is increasing rapidly, so we have built primalscheme labs to make
-			it easier to find schemes and track their status. You can request that your scheme be tracked
-			to enable other users to see it.
+			The number of primer schemes is increasing rapidly, so we have built this site to make it
+			easier to find pha4ge primer schemes and track their status. You can request that your scheme
+			be tracked to enable other users to see it.
 		</p>
 		<p>
 			The coloured status bar will indicate the development state of the scheme (see <a
