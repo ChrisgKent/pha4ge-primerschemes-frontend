@@ -46,6 +46,8 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		gap: 1rem;
+		padding: 0.75rem 0.3rem 0.2rem;
 	}
 	nav ul {
 		display: flex;
@@ -53,9 +55,21 @@
 		align-items: center;
 		padding: 0;
 		margin: 0 20px;
+		flex-wrap: wrap;
 	}
 	nav ul li {
 		list-style: none;
 		margin: 0 5px;
+	}
+
+	@media (max-width: 720px) {
+		nav {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+
+		nav ul {
+			margin: 0;
+		}
 	}
 </style>

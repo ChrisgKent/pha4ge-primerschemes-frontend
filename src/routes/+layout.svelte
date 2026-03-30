@@ -70,17 +70,17 @@
 		position: sticky;
 		top: 0;
 		background-color: var(--pico-header-background);
-		transition: border-top-color 0.4s ease-in-out, box-shadow 0.4s ease-in-out;
+		transition: border-top-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 	}
 	header.is-fixed-above-lg.is-fixed {
-		border-bottom-color: var(--pico-header-border-color);
-		box-shadow: var(--pico-card-box-shadow);
+		border-bottom-color: rgba(35, 74, 114, 0.15);
+		box-shadow: 0 1px 6px rgba(31, 41, 51, 0.08);
 	}
 
 	header {
 		z-index: 4;
 		position: relative;
-		padding: 0.5rem 0;
+		padding: 0.65rem 0;
 		border-bottom: var(--pico-border-width) solid transparent;
 		margin-bottom: calc(var(--pico-block-spacing-vertical) * 2);
 	}
@@ -89,6 +89,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		gap: 1rem;
 	}
 
 	header .container > a {
@@ -98,25 +99,72 @@
 	}
 
 	.logo img {
-		height: 50px;
-		margin-right: 10px;
+		height: 44px;
+		margin-right: 0.55rem;
 	}
 
 	a.logo {
 		text-decoration: none;
-		font-size: 1.2rem;
+		font-size: 1.26rem;
+		font-weight: 600;
+		color: #1f3f5e;
+		display: flex;
+		align-items: center;
 	}
 	a.logo:hover {
 		text-decoration: none;
+		color: #234a72;
 	}
+
+	.navbar ul {
+		align-items: center;
+		gap: 0.3rem;
+		margin: 0;
+	}
+
+	.navbar a {
+		border-radius: 4px;
+		padding: 0.35rem 0.65rem;
+	}
+
+	.navbar a:hover {
+		background: rgba(35, 74, 114, 0.08);
+		text-decoration: none;
+	}
+
+	.navbar button.secondary {
+		border-radius: 4px;
+		padding-inline: 0.85rem;
+		font-weight: 600;
+	}
+
 	footer {
 		text-align: center;
-		margin-top: 2em;
-		border-top: 1px solid rgb(196, 196, 196);
-		padding: 1em 0;
-		background-color: var(--pico-header-background);
+		margin-top: 2.5rem;
+		border-top: 1px solid rgba(35, 74, 114, 0.14);
+		padding: 1.25rem 0;
+		background: #f6f8fa;
 	}
+
 	.gitlogo {
 		height: 22px;
+		vertical-align: middle;
+		margin-left: 0.25rem;
+	}
+
+	@media (max-width: 920px) {
+		header .container {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.navbar ul {
+			flex-wrap: wrap;
+			justify-content: center;
+		}
+
+		a.logo {
+			justify-content: center;
+		}
 	}
 </style>

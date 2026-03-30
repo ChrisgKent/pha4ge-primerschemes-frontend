@@ -1,7 +1,8 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { getCachedFlatSchemes } from '$lib/catalogCache.js';
+	import StatusPill from '$lib/StatusPill.svelte';
 
 	import 'giscus';
 
@@ -35,6 +36,9 @@
 	let info = undefined;
 	let infoLoading = true;
 	let infoErrored = false;
+	let showRawInfoJson = false;
+	let infoCopied = false;
+	let infoCopyResetTimer = undefined;
 
 	// Bedfile
 	let rawBedfile = undefined;
@@ -45,6 +49,101 @@
 
 	// Algo
 	let primalschemeMajorVersion = undefined;
+
+	const infoSectionDefinitions = [
+		{
+			title: 'Core Metadata',
+			keys: ['schemename', 'ampliconsize', 'schemeversion', 'status', 'description', 'algorithmversion']
+		},
+		{
+			title: 'Attribution',
+			keys: ['authors', 'species', 'collections', 'license', 'contactinfo']
+		},
+		{
+			title: 'Files And Checksums',
+			keys: ['info_json_url', 'primer_bed_url', 'reference_fasta_url', 'primer_bed_md5', 'reference_fasta_md5']
+		},
+		{
+			title: 'External Links',
+			keys: ['links']
+		}
+	];
+	const infoSectionKeys = new Set(infoSectionDefinitions.flatMap((section) => section.keys));
+
+	const isProbablyUrl = (value) => typeof value === 'string' && /^https?:\/\//.test(value);
+	const isLinksMap = (value) =>
+		value !== null &&
+		typeof value === 'object' &&
+		!Array.isArray(value) &&
+		Object.values(value).some((v) => Array.isArray(v) || typeof v === 'string');
+	const normalizeLinkGroups = (value) =>
+		Object.entries(value ?? {})
+			.map(([group, raw]) => ({
+				group,
+				items: (Array.isArray(raw) ? raw : raw ? [raw] : []).filter(Boolean)
+			}))
+			.filter((group) => group.items.length > 0);
+	const isFieldValueEmpty = (value) => {
+		if (value === null || value === undefined) return true;
+		if (typeof value === 'string') return value.trim().length === 0;
+		if (Array.isArray(value)) return value.length === 0;
+		if (typeof value === 'object') return Object.keys(value).length === 0;
+		return false;
+	};
+	const emptyFieldLabel = (key) => {
+		const keyText = String(key).replaceAll('_', ' ');
+		const label = keyText === 'contactinfo' ? 'contact info' : keyText;
+		return `No ${label}`;
+	};
+	const displayValue = (value) => {
+		if (value === null || value === undefined) return '';
+		if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+			return String(value);
+		}
+		return JSON.stringify(value);
+	};
+
+	$: infoSections = info
+		? infoSectionDefinitions
+				.map((section) => ({
+					...section,
+					entries: section.keys
+						.filter((key) => info[key] !== undefined)
+						.map((key) => ({ key, value: info[key] }))
+				}))
+				.filter((section) => section.entries.length > 0)
+		: [];
+
+	$: infoAdditionalEntries = info
+		? Object.keys(info)
+				.filter((key) => !infoSectionKeys.has(key))
+				.sort()
+				.map((key) => ({ key, value: info[key] }))
+		: [];
+
+	async function copyInfoJson() {
+		if (!info) return;
+		const infoText = JSON.stringify(info, null, 2);
+		try {
+			if (navigator?.clipboard?.writeText) {
+				await navigator.clipboard.writeText(infoText);
+			} else {
+				const textArea = document.createElement('textarea');
+				textArea.value = infoText;
+				document.body.appendChild(textArea);
+				textArea.select();
+				document.execCommand('copy');
+				document.body.removeChild(textArea);
+			}
+			infoCopied = true;
+			clearTimeout(infoCopyResetTimer);
+			infoCopyResetTimer = setTimeout(() => {
+				infoCopied = false;
+			}, 1400);
+		} catch (err) {
+			console.error(err);
+		}
+	}
 
 	function download(content, filename) {
 		// Create a file
@@ -142,6 +241,10 @@
 			referenceLoading = false;
 		}
 	});
+
+	onDestroy(() => {
+		clearTimeout(infoCopyResetTimer);
+	});
 </script>
 
 {#if schemeLoading || infoLoading || bedfileLoading}
@@ -166,7 +269,7 @@
 	{/if}
 	<div class="grid level">
 		<h2>{scheme.schemename} / {scheme.ampliconsize} / {scheme.schemeversion}</h2>
-		<span class="pill {scheme.status}"><strong>{scheme.status}</strong></span>
+		<StatusPill status={scheme.status} />
 		<a
 			href="https://github.com/quick-lab/primerschemes/tree/main/primerschemes/{scheme.schemename}/{scheme.ampliconsize}/{scheme.schemeversion}"
 			class="contrast">[github-page]</a
@@ -223,6 +326,22 @@
 						<button
 							type="button"
 							class="download"
+							on:click={() => {
+								showRawInfoJson = !showRawInfoJson;
+							}}
+						>
+							{showRawInfoJson ? 'structured view' : 'raw json'}
+						</button>
+					</li>
+					<li class="downloadbutton">
+						<button type="button" class="download" on:click={copyInfoJson}>
+							{infoCopied ? 'copied' : 'copy'}
+						</button>
+					</li>
+					<li class="downloadbutton">
+						<button
+							type="button"
+							class="download"
 							data-tooltip="Download info.json"
 							on:click={() => {
 								download(JSON.stringify(info, null, 2), 'info.json');
@@ -235,22 +354,161 @@
 			</nav>
 		</header>
 		<div class="overflow-auto">
-			<figure>
-				<table>
-					{#each Object.keys(info) as key}
-						<tr>
-							<th scope="row">{key}:</th>
-							{#if info[key] instanceof Array}
-								<td>{info[key].join(', ')}</td>
-							{:else if info[key] instanceof Object}
-								<td>{JSON.stringify(info[key], null, 2)}</td>
-							{:else}
-								<td>{info[key]}</td>
-							{/if}
-						</tr>
-					{/each}
-				</table>
-			</figure>
+			{#if showRawInfoJson}
+				<pre class="json-raw"><code>{JSON.stringify(info, null, 2)}</code></pre>
+			{:else}
+				{#each infoSections as section}
+					<section class="json-section">
+						<h6>{section.title}</h6>
+						<table class="json-table">
+							<tbody>
+								{#each section.entries as entry}
+									<tr>
+										<th scope="row"><code>{entry.key}</code></th>
+										<td>
+											{#if isFieldValueEmpty(entry.value)}
+												<span class="value-empty">{emptyFieldLabel(entry.key)}</span>
+											{:else if entry.value instanceof Array}
+												{#if entry.value.length === 0}
+													<span class="value-empty">{emptyFieldLabel(entry.key)}</span>
+												{:else}
+													<div class="chip-wrap">
+														{#each entry.value as valueItem}
+															{#if isProbablyUrl(valueItem)}
+																<a
+																	class="value-chip link-chip"
+																	href={valueItem}
+																	target="_blank"
+																	rel="noopener noreferrer">{valueItem}</a
+																>
+															{:else}
+																<span class="value-chip">{displayValue(valueItem)}</span>
+															{/if}
+														{/each}
+													</div>
+												{/if}
+											{:else if entry.key === 'links' && isLinksMap(entry.value)}
+												<div class="link-groups">
+													{#if normalizeLinkGroups(entry.value).length === 0}
+														<span class="value-empty">No links</span>
+													{:else}
+														{#each normalizeLinkGroups(entry.value) as group}
+															<div class="link-group">
+																<strong>{group.group}</strong>
+																<div class="chip-wrap">
+																	{#each group.items as link}
+																		{#if isProbablyUrl(link)}
+																			<a
+																				class="value-chip link-chip"
+																				href={link}
+																				target="_blank"
+																				rel="noopener noreferrer">{link}</a
+																			>
+																		{:else}
+																			<span class="value-chip">{displayValue(link)}</span>
+																		{/if}
+																	{/each}
+																</div>
+															</div>
+														{/each}
+													{/if}
+												</div>
+											{:else if entry.value !== null && typeof entry.value === 'object'}
+												<details class="json-object">
+													<summary>View object</summary>
+													<pre><code>{JSON.stringify(entry.value, null, 2)}</code></pre>
+												</details>
+											{:else if isProbablyUrl(entry.value)}
+												<a href={entry.value} target="_blank" rel="noopener noreferrer"
+													>{entry.value}</a
+												>
+											{:else}
+												<span>{displayValue(entry.value)}</span>
+											{/if}
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</section>
+				{/each}
+
+				{#if infoAdditionalEntries.length > 0}
+					<section class="json-section">
+						<h6>Additional Fields</h6>
+						<table class="json-table">
+							<tbody>
+								{#each infoAdditionalEntries as entry}
+									<tr>
+										<th scope="row"><code>{entry.key}</code></th>
+										<td>
+											{#if isFieldValueEmpty(entry.value)}
+												<span class="value-empty">{emptyFieldLabel(entry.key)}</span>
+											{:else if entry.value instanceof Array}
+												{#if entry.value.length === 0}
+													<span class="value-empty">{emptyFieldLabel(entry.key)}</span>
+												{:else}
+													<div class="chip-wrap">
+														{#each entry.value as valueItem}
+															{#if isProbablyUrl(valueItem)}
+																<a
+																	class="value-chip link-chip"
+																	href={valueItem}
+																	target="_blank"
+																	rel="noopener noreferrer">{valueItem}</a
+																>
+															{:else}
+																<span class="value-chip">{displayValue(valueItem)}</span>
+															{/if}
+														{/each}
+													</div>
+												{/if}
+											{:else if entry.key === 'links' && isLinksMap(entry.value)}
+												<div class="link-groups">
+													{#if normalizeLinkGroups(entry.value).length === 0}
+														<span class="value-empty">No links</span>
+													{:else}
+														{#each normalizeLinkGroups(entry.value) as group}
+															<div class="link-group">
+																<strong>{group.group}</strong>
+																<div class="chip-wrap">
+																	{#each group.items as link}
+																		{#if isProbablyUrl(link)}
+																			<a
+																				class="value-chip link-chip"
+																				href={link}
+																				target="_blank"
+																				rel="noopener noreferrer">{link}</a
+																			>
+																		{:else}
+																			<span class="value-chip">{displayValue(link)}</span>
+																		{/if}
+																	{/each}
+																</div>
+															</div>
+														{/each}
+													{/if}
+												</div>
+											{:else if entry.value !== null && typeof entry.value === 'object'}
+												<details class="json-object">
+													<summary>View object</summary>
+													<pre><code>{JSON.stringify(entry.value, null, 2)}</code></pre>
+												</details>
+											{:else if isProbablyUrl(entry.value)}
+												<a href={entry.value} target="_blank" rel="noopener noreferrer"
+													>{entry.value}</a
+												>
+											{:else}
+												<span>{displayValue(entry.value)}</span>
+											{/if}
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</section>
+				{/if}
+			{/if}
 		</div>
 	</article>
 
@@ -382,7 +640,6 @@
 {/if}
 
 <style>
-	@import '$lib/assets/css/pills.css';
 	.level {
 		grid-template-columns: 1fr auto;
 		margin-bottom: 2em;
@@ -394,25 +651,16 @@
 		line-height: 0.5em;
 	}
 
-	figure td,
-	figure th {
+	figure td {
 		white-space: nowrap;
 	}
 
 	th {
 		font-weight: bold;
 	}
-	.dropdown {
-		background-color: var(--pico-primary);
-		color: rgb(255, 254, 247);
-	}
 	article header {
 		background-color: var(--pico-primary);
 		color: rgb(255, 254, 247);
-	}
-	.breadcrumb {
-		margin-bottom: 2em;
-		border-bottom: 1px solid rgb(115, 130, 140);
 	}
 
 	p[aria-busy='true'] {
@@ -447,5 +695,107 @@
 		border-radius: 4px;
 		background: #fff8e1;
 		color: #5f4a12;
+	}
+
+	.json-section + .json-section {
+		margin-top: 1rem;
+	}
+
+	.json-section h6 {
+		margin-bottom: 0.45rem;
+	}
+
+	.json-table th,
+	.json-table td {
+		border: none;
+		border-bottom: 1px solid rgba(115, 130, 140, 0.22);
+		line-height: 1.4;
+		padding: 0.7rem 0.65rem;
+		vertical-align: middle;
+	}
+
+	.json-table th {
+		width: 32%;
+		background: rgba(255, 255, 255, 0.45);
+	}
+
+	.json-table td {
+		white-space: normal;
+		background: rgba(255, 255, 255, 0.24);
+	}
+
+	.chip-wrap {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+	}
+
+	.value-chip {
+		display: inline-block;
+		padding: 0.2rem 0.55rem;
+		border-radius: 999px;
+		border: 1px solid rgba(115, 130, 140, 0.28);
+		background: rgba(255, 255, 255, 0.65);
+		font-size: 0.9rem;
+	}
+
+	.link-chip {
+		text-decoration: none;
+	}
+
+	.link-chip:hover {
+		text-decoration: underline;
+	}
+
+	.link-groups {
+		display: flex;
+		flex-direction: column;
+		gap: 0.55rem;
+	}
+
+	.link-group strong {
+		display: block;
+		margin-bottom: 0.2rem;
+		font-size: 0.9rem;
+		text-transform: lowercase;
+	}
+
+	.value-empty {
+		color: #607282;
+		font-style: italic;
+	}
+
+	.json-object summary {
+		cursor: pointer;
+		font-weight: 600;
+		color: var(--pico-primary);
+	}
+
+	.json-object pre,
+	.json-raw {
+		background: rgba(255, 255, 255, 0.72);
+		border: 1px solid rgba(115, 130, 140, 0.2);
+		border-radius: 8px;
+		padding: 0.75rem;
+		margin-top: 0.5rem;
+		white-space: pre-wrap;
+		word-break: break-word;
+	}
+
+	@media (max-width: 860px) {
+		.json-table th,
+		.json-table td {
+			display: block;
+			width: 100%;
+		}
+
+		.json-table th {
+			padding-bottom: 0.2rem;
+			border-bottom: none;
+		}
+
+		.json-table td {
+			padding-top: 0.2rem;
+		}
 	}
 </style>
